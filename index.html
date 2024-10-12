@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Text-to-Speech Application</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  </head>
+  <body
+    class="bg-gray-100 min-h-screen flex items-center justify-center px-4 py-12"
+  >
+    <div id="app" class="max-w-2xl w-full bg-white rounded-lg shadow-md p-8">
+      <h1 class="text-3xl font-bold text-center mb-8">
+        Text-to-Speech Converter
+      </h1>
+      <form @submit.prevent="submitForm" class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label
+              for="locale"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Locale</label
+            >
+            <select
+              id="locale"
+              v-model="locale"
+              @change="updateVoiceOptions"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="">Choose a locale...</option>
+              <option v-for="loc in locales" :key="loc" :value="loc">
+                {{ loc }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label
+              for="gender"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Gender</label
+            >
+            <select
+              id="gender"
+              v-model="gender"
+              @change="updateVoiceOptions"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="">Choose a gender...</option>
+              <option value="Female">Female</option>
+              <option value="Male">Male</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label
+              for="voice"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Voice</label
+            >
+            <select
+              id="voice"
+              v-model="selectedVoice"
+              :disabled="!voicesAvailable"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="">Choose a voice...</option>
+              <option
+                v-for="voice in availableVoices"
+                :key="voice.short_name"
+                :value="voice.short_name"
+              >
+                {{ voice.local_name || voice.name }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label
+              for="speed"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Speech Rate</label
+            >
+            <select
+              id="speed"
+              v-model="speed"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="x-slow">Extra Slow</option>
+              <option value="slow">Slow</option>
+              <option value="medium">Medium</option>
+              <option value="fast">Fast</option>
+              <option value="x-fast">Extra Fast</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label for="text" class="block text-sm font-medium text-gray-700 mb-1"
+            >Text to read</label
+          >
+          <textarea
+            id="text"
+            v-model="text"
+            maxlength="3000"
+            minlength="1"
+            placeholder="Type some text here..."
+            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 h-48"
+          ></textarea>
+          <p class="text-sm text-gray-500 mt-1">
+            {{ text.length }}/3000 characters
+          </p>
+        </div>
+        <button
+          type="submit"
+          :disabled="!formValid"
+          class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Generate Speech
+        </button>
+      </form>
+      <div v-if="audioSrc" class="mt-8">
+        <h2 class="text-xl font-semibold mb-4">Audio Player</h2>
+        <audio
+          id="player"
+          ref="player"
+          :src="audioSrc"
+          controls
+          class="w-full"
+        ></audio>
+      </div>
+    </div>
+
+    <script>
+      const { createApp, ref, computed, onMounted, watch } = Vue;
+
+      createApp({
+        setup() {
+          const locale = ref("");
+          const gender = ref("");
+          const selectedVoice = ref("");
+          const speed = ref("medium");
+          const text = ref("");
+          const audioSrc = ref("");
+          const locales = ref([]);
+          const availableVoices = ref([]);
+          const voicesAvailable = ref(false);
+          const supportedFormats = ref([]);
+          const voicesByLocaleAndGender = ref({});
+
+          const fetchVoices = () => {
+            fetch("/voices")
+              .then((response) => response.json())
+              .then((voices) => {
+                const localeSet = new Set();
+                voicesByLocaleAndGender.value = {};
+
+                voices.forEach((voice) => {
+                  const loc = voice.locale;
+                  const gen = voice.gender;
+
+                  localeSet.add(loc);
+
+                  if (!voicesByLocaleAndGender.value[loc]) {
+                    voicesByLocaleAndGender.value[loc] = {};
+                  }
+                  if (!voicesByLocaleAndGender.value[loc][gen]) {
+                    voicesByLocaleAndGender.value[loc][gen] = [];
+                  }
+                  voicesByLocaleAndGender.value[loc][gen].push(voice);
+                });
+
+                locales.value = Array.from(localeSet);
+              })
+              .catch((error) => console.error("Error fetching voices:", error));
+          };
+
+          const updateVoiceOptions = () => {
+            if (locale.value && gender.value) {
+              availableVoices.value =
+                voicesByLocaleAndGender.value[locale.value][gender.value] || [];
+              voicesAvailable.value = availableVoices.value.length > 0;
+            } else {
+              availableVoices.value = [];
+              voicesAvailable.value = false;
+            }
+            selectedVoice.value = "";
+          };
+
+          const getSupportedAudioFormats = () => {
+            const audio = new Audio();
+            const formats = {
+              "raw-8khz-8bit-mono-mulaw": "audio/basic",
+              "audio-16khz-32kbitrate-mono-mp3": "audio/mpeg",
+              "audio-16khz-128kbitrate-mono-mp3": "audio/mpeg",
+              "audio-16khz-64kbitrate-mono-mp3": "audio/mpeg",
+              "audio-24khz-48kbitrate-mono-mp3": "audio/mpeg",
+              "audio-24khz-96kbitrate-mono-mp3": "audio/mpeg",
+              "audio-24khz-160kbitrate-mono-mp3": "audio/mpeg",
+              "raw-16khz-16bit-mono-truesilk": "audio/SILK",
+              "riff-16khz-16bit-mono-pcm": "audio/wav",
+              "riff-8khz-16bit-mono-pcm": "audio/wav",
+              "riff-24khz-16bit-mono-pcm": "audio/wav",
+              "riff-8khz-8bit-mono-mulaw": "audio/wav",
+              "raw-16khz-16bit-mono-pcm": "audio/l16",
+              "raw-24khz-16bit-mono-pcm": "audio/l16",
+              "raw-8khz-16bit-mono-pcm": "audio/l16",
+              "ogg-16khz-16bit-mono-opus": "audio/ogg",
+              "ogg-24khz-16bit-mono-opus": "audio/ogg",
+              "raw-48khz-16bit-mono-pcm": "audio/l16",
+              "riff-48khz-16bit-mono-pcm": "audio/wav",
+              "audio-48khz-96kbitrate-mono-mp3": "audio/mpeg",
+              "audio-48khz-192kbitrate-mono-mp3": "audio/mpeg",
+              "ogg-48khz-16bit-mono-opus": "audio/ogg",
+              "webm-16khz-16bit-mono-opus": "audio/webm",
+              "webm-24khz-16bit-mono-opus": "audio/webm",
+              "raw-24khz-16bit-mono-truesilk": "audio/SILK",
+              "raw-8khz-8bit-mono-alaw": "audio/x-alaw-basic",
+              "riff-8khz-8bit-mono-alaw": "audio/wav",
+              "webm-24khz-16bit-24kbps-mono-opus": "audio/webm",
+            };
+
+            supportedFormats.value = Object.keys(formats).filter((format) => {
+              const canPlay = audio.canPlayType(formats[format]);
+              return canPlay === "probably" || canPlay === "maybe";
+            });
+          };
+
+          const player = ref(null);
+
+          const submitForm = () => {
+            if (formValid.value) {
+              const params = new URLSearchParams({
+                text: text.value,
+                voice_id: selectedVoice.value,
+                output_format: supportedFormats.value[0],
+                speed: speed.value,
+              });
+              console.log(
+                text.value,
+                selectedVoice.value,
+                supportedFormats.value[0],
+                speed.value
+              );
+              audioSrc.value = `/read?${params.toString()}`;
+            }
+          };
+
+          watch(audioSrc, (newSrc) => {
+            if (newSrc) {
+              Vue.nextTick(() => {
+                if (player.value) {
+                  player.value.play();
+                }
+              });
+            }
+          });
+
+          const formValid = computed(() => {
+            return (
+              selectedVoice.value &&
+              text.value.length > 0 &&
+              supportedFormats.value.length > 0
+            );
+          });
+
+          onMounted(() => {
+            fetchVoices();
+            getSupportedAudioFormats();
+            player.value = document.getElementById("player");
+          });
+
+          return {
+            locale,
+            gender,
+            selectedVoice,
+            speed,
+            text,
+            audioSrc,
+            locales,
+            availableVoices,
+            voicesAvailable,
+            updateVoiceOptions,
+            submitForm,
+            formValid,
+            player,
+          };
+        },
+      }).mount("#app");
+    </script>
+  </body>
+</html>
