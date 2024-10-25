@@ -86,11 +86,19 @@
               v-model="speed"
               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             >
-              <option value="x-slow">Extra Slow</option>
-              <option value="slow">Slow</option>
-              <option value="medium">Medium</option>
-              <option value="fast">Fast</option>
-              <option value="x-fast">Extra Fast</option>
+              <option value="-50%">Half Speed (-50%)</option>
+              <option value="-40%">-40% Slower</option>
+              <option value="-30%">-30% Slower</option>
+              <option value="-20%">-20% Slower</option>
+              <option value="-10%">-10% Slower</option>
+              <option value="0%">Normal Speed</option>
+              <option value="+10%">+10% Faster</option>
+              <option value="+20%">+20% Faster</option>
+              <option value="+30%">+30% Faster</option>
+              <option value="+40%">+40% Faster</option>
+              <option value="+50%">+50% Faster</option>
+              <option value="+75%">+75% Faster</option>
+              <option value="+100%">Double Speed</option>
             </select>
           </div>
         </div>
@@ -138,7 +146,7 @@
           const locale = ref("");
           const gender = ref("");
           const selectedVoice = ref("");
-          const speed = ref("medium");
+          const speed = ref("0%");
           const text = ref("");
           const audioSrc = ref("");
           const locales = ref([]);

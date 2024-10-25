@@ -156,7 +156,7 @@ async def read_text(
     text: str = Query(..., min_length=1, max_length=3000),
     voice_id: str = Query(...),
     output_format: str = Query(...),
-    speed: str = Query("slow"),
+    speed: str = Query("0%", regex=r"^[+-]?(\d{1,3}%)$"),
 ):
     """
     Convert text to speech using Azure Neural Speech and stream the audio.
@@ -165,7 +165,7 @@ async def read_text(
         text (str): The text to convert to speech.
         voice_id (str): The ID of the voice to use.
         output_format (str): The desired audio output format.
-        speed (str): The speed of the speech (e.g., "100%", "x-slow", "fast").
+        speed (str): The speed of the speech as a percentage (e.g., "-50%", "0%", "+75%", "+100%").
 
     Returns:
         StreamingResponse: A streaming response containing the audio data.
@@ -195,7 +195,7 @@ async def read_text(
             speech_config=speech_config, audio_config=None
         )
 
-        # Prepare SSML
+        # Prepare SSML with the percentage-based rate
         ssml = f"""
         <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">
             <voice name="{voice_id}">
