@@ -8,8 +8,8 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
-import azure.cognitiveservices.speech as speechsdk
-from azure.cognitiveservices.speech import SpeechSynthesisOutputFormat
+import azure.cognitiveservices.speech as speechsdk  # type: ignore
+from azure.cognitiveservices.speech import SpeechSynthesisOutputFormat  # type: ignore
 
 
 app = FastAPI()
@@ -153,10 +153,10 @@ async def get_voices():
 
 @app.get("/read")
 async def read_text(
-    text: str = Query(..., min_length=1, max_length=3000),
+    text: str = Query(..., min_length=1, max_length=30000),
     voice_id: str = Query(...),
     output_format: str = Query(...),
-    speed: str = Query("0%", regex=r"^[+-]?(\d{1,3}%)$"),
+    speed: str = Query("0%", pattern=r"^[+-]?(\d{1,3}%)$"),
 ):
     """
     Convert text to speech using Azure Neural Speech and stream the audio.
